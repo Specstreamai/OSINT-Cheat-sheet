@@ -11,6 +11,7 @@ platforms — which is what makes it worth adding to Multi Source Search.
 Requires two values in config.ini [google_cse]:
   api_key — issued via Google Cloud/API Console (enable "Custom Search API")
   cx      — the Search Engine ID from https://programmablesearchengine.google.com/
+Optional: base_url, the endpoint to call (empty means CSE_URL, Google's own).
 
 Free tier: 100 queries/day. Each page here costs exactly one query
 (Google caps `num` at 10 results/request), so `count` is served in
@@ -96,14 +97,17 @@ class GoogleCSEError(Exception):
     pass
 
 
-def _get_client_config(config: configparser.ConfigParser) -> tuple[str, str]:
-    api_key = config.get("google_cse", "api_key", fallback="").strip()
-    cx      = config.get("google_cse", "cx", fallback="").strip()
+def _get_client_config(config: configparser.ConfigParser) -> tuple[str, str, str]:
+    api_key  = config.get("google_cse", "api_key", fallback="").strip()
+    cx       = config.get("google_cse", "cx", fallback="").strip()
+    base_url = config.get("google_cse", "base_url", fallback="").strip() or CSE_URL
     if not api_key or api_key == "YOUR_GOOGLE_API_KEY":
         raise GoogleCSEError("api_key belum diisi di config.ini [google_cse]")
     if not cx or cx == "YOUR_SEARCH_ENGINE_ID":
         raise GoogleCSEError("cx (Search Engine ID) belum diisi di config.ini [google_cse]")
-    return api_key, cx
+    if not _SAFE_URL_RE.match(base_url):
+        raise GoogleCSEError("base_url di config.ini [google_cse] harus diawali http:// atau https://")
+    return api_key, cx, base_url
 
 
 def _extract_thumbnail(item: dict) -> str | None:
@@ -239,7 +243,7 @@ def _enrich_records(records: list[dict]) -> None:
         list(pool.map(_job, candidates))
 
 
-def _fetch_page(query: str, api_key: str, cx: str, start: int) -> list[dict]:
+def _fetch_page(query: str, api_key: str, cx: str, start: int, base_url: str = CSE_URL) -> list[dict]:
     params = {
         "key":  api_key,
         "cx":   cx,
@@ -248,7 +252,7 @@ def _fetch_page(query: str, api_key: str, cx: str, start: int) -> list[dict]:
         "start": start,
     }
     try:
-        r = requests.get(CSE_URL, params=params, timeout=REQUEST_TIMEOUT)
+        r = requests.get(base_url, params=params, timeout=REQUEST_TIMEOUT)
     except requests.RequestException as e:
         raise GoogleCSEError(f"Google CSE request failed: {e}") from e
 
@@ -280,7 +284,7 @@ def google_cse_search(raw_query: str, count: int = 20, config: configparser.Conf
     if not query:
         raise GoogleCSEError("Search query is required")
 
-    api_key, cx = _get_client_config(config)
+    api_key, cx, base_url = _get_client_config(config)
 
     try:
         start = int(cursor) if cursor else 1
@@ -292,7 +296,7 @@ def google_cse_search(raw_query: str, count: int = 20, config: configparser.Conf
     next_cursor = None
 
     while len(records) < target:
-        items = _fetch_page(query, api_key, cx, start)
+        items = _fetch_page(query, api_key, cx, start, base_url)
         if not items:
             break
         for item in items:

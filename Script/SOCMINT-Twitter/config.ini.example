@@ -20,6 +20,11 @@ api_key = AIzaSxxxxxxxxx
 
 cx = cxxxxxxxxxx
 
+; optional, leave it empty to use Google (https://www.googleapis.com/customsearch/v1)
+; only set it to an endpoint that answers in the same Custom Search JSON format
+
+base_url =
+
 [twitter_cookies]
 ; Inspect element then check the tab application then click the cookie in storage or u can use burpsuite
 

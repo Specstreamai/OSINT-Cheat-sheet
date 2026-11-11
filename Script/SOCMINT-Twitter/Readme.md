@@ -177,6 +177,10 @@ Check the result in the table.
 
 <img width="868" height="886" alt="add host and domain twitter" src="https://github.com/user-attachments/assets/caecb9d5-85c7-4fdb-8e38-e4acfc55630e" />
 
+Optional: `base_url` in `[google_cse]` sets the endpoint the app calls.
+Leave it empty to use Google (`https://www.googleapis.com/customsearch/v1`);
+set it only to an endpoint that answers in the same Custom Search JSON format.
+
 **5. Copy `config.ini.example` to `config.ini`** and fill in your keys.
 
 **6. Run the app:**
